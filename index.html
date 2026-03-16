@@ -311,7 +311,7 @@ main{padding:10px 10px 90px}
 </div>
 
 <script>
-const API_URL="https://script.google.com/macros/s/AKfycbyCb4qqMLpVJdfFZlH6_9vT6088qcxzMuPSP3HF8acDWxFCWjH8FbGdv9bwt59xoz4GTg/exec";
+const API_URL="https://script.google.com/macros/s/AKfycbxRdoFjcD7GgBC-SOVkz_T7IRFkniSJ61a22oljH6j28JLpFlHhuvmVk8UCiPBmvOw8Gg/exec";
 
 const STAFF=[
   {name:"E. Carr",initials:"EC",color:"#3b82f6",avatar:"👩"},
@@ -475,6 +475,15 @@ function getSectionFor(id){return BUILDING.find(s=>s.items.some(i=>i.id===id))}
 async function apiGet(){
   const res=await fetch(API_URL+'?action=getState');
   const data=await res.json();
+  // Apply avatars from sheet if present
+  if(data.avatars){
+    STAFF.forEach(p=>{
+      if(data.avatars[p.initials]&&AVATAR_OPTIONS.includes(data.avatars[p.initials])){
+        p.avatar=data.avatars[p.initials];
+        localStorage.setItem('svm_avatar_'+p.initials,p.avatar);
+      }
+    });
+  }
   return data.state||{};
 }
 async function apiPost(payload){
@@ -584,16 +593,16 @@ function confirmAvatarPick(){
   if(!avatarPickerTarget||!avatarPickerSelected)return;
   const person=STAFF.find(s=>s.initials===avatarPickerTarget);
   if(!person)return;
-  const mode=avatarPickerMode; // capture before closeAvatarPicker nulls it
+  const mode=avatarPickerMode;
   person.avatar=avatarPickerSelected;
   localStorage.setItem('svm_avatar_'+person.initials,avatarPickerSelected);
+  // Save to Sheet so other devices pick it up
+  apiPost({action:'saveAvatar',initials:person.initials,avatar:avatarPickerSelected}).catch(()=>{});
   closeAvatarPicker();
 
-  // Refresh login screen avatar if visible
   const loginAv=document.getElementById('login_av_'+person.initials);
   if(loginAv)loginAv.textContent=person.avatar;
 
-  // Refresh active user badge if it's the current user
   if(activeUser&&activeUser.initials===person.initials){
     activeUser.avatar=person.avatar;
     updateActiveUserBadge();
@@ -620,7 +629,7 @@ function buildChecklist(){
     const done=section.items.filter(i=>state[i.id]).length;
     const total=section.items.length;
     const sec=document.createElement('div');
-    sec.className='section';sec.id='sec_'+section.id;
+    sec.className='section collapsed';sec.id='sec_'+section.id;
     sec.innerHTML=`<div class="section-header" onclick="toggleSection('${section.id}')">
       <div class="section-title">${section.label}</div>
       <div class="section-meta">
@@ -864,9 +873,10 @@ async function manualSync(){
   btn.textContent='⏳ Syncing...';
   btn.disabled=true;
   try{
-    state=await apiGet();
+    state=await apiGet(); // also updates avatars
     buildChecklist();
     if(document.getElementById('tab-history').classList.contains('active'))buildHistoryTab();
+    if(activeUser)updateActiveUserBadge();
     showToast('📡 Synced!');
   }catch(e){
     showToast('⚠️ Sync failed — check connection');
