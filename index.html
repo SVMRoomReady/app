@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SVM Housekeeping</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600&display=swap');
+:root {
+  --bg:#0f1318;--surface:#181d25;--surface2:#1e2530;--border:#2a3345;--border-bright:#3d5080;
+  --accent:#3b82f6;--accent2:#60a5fa;--today:#16a34a;--today-bright:#22c55e;
+  --yesterday:#ca8a04;--yesterday-bright:#eab308;--stale:#b91c1c;--stale-bright:#ef4444;
+  --bath-done:#b45309;--bath-bright:#f59e0b;--util-done:#6d28d9;--util-bright:#a78bfa;
+  --text:#e2e8f0;--text-dim:#64748b;--text-mid:#94a3b8;--danger:#dc2626;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans',sans-serif;min-height:100vh;overscroll-behavior:none}
+
+/* ── LOGIN SCREEN ── */
+.login-screen{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:24px;gap:20px;
+}
+.login-logo{font-size:3rem;line-height:1}
+.login-title{font-family:'Rajdhani',sans-serif;font-size:1.6rem;font-weight:700;letter-spacing:.12em;color:var(--accent2);text-transform:uppercase;text-align:center}
+.login-sub{font-size:.8rem;color:var(--text-dim);text-align:center}
+.login-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:340px}
+.login-btn{
+  padding:20px 10px;
+  background:var(--surface);border:2px solid var(--border);
+  border-radius:12px;color:var(--text);
+  font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;
+  cursor:pointer;transition:all .15s;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  position:relative;
+}
+.login-btn:active{transform:scale(.95)}
+.login-btn:hover{border-color:var(--accent);color:var(--accent2)}
+.login-btn .login-avatar{font-size:1.8rem;line-height:1}
+.login-btn .login-name{font-size:.85rem;letter-spacing:.06em}
+.login-btn .edit-avatar-hint{
+  position:absolute;top:6px;right:8px;
+  font-size:.55rem;color:var(--text-dim);
+  font-family:'Noto Sans',sans-serif;font-weight:400;
+}
+
+/* ── AVATAR PICKER ── */
+.avatar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:500;align-items:flex-end;justify-content:center}
+.avatar-overlay.open{display:flex}
+.avatar-modal{
+  background:var(--surface);border:1px solid var(--border-bright);
+  border-radius:16px 16px 0 0;padding:18px 16px 32px;
+  width:100%;max-width:420px;animation:slideUp .18s ease;
+}
+.avatar-modal-title{font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:2px}
+.avatar-modal-sub{font-size:.7rem;color:var(--text-dim);margin-bottom:14px}
+.avatar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:14px;max-height:220px;overflow-y:auto}
+.avatar-opt{
+  aspect-ratio:1;background:var(--surface2);border:2px solid var(--border);
+  border-radius:8px;font-size:1.3rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .12s;
+}
+.avatar-opt:active{transform:scale(.88)}
+.avatar-opt.selected{border-color:var(--accent);background:rgba(59,130,246,.15)}
+.avatar-cancel{width:100%;padding:10px;background:transparent;border:none;color:var(--text-dim);font-family:'Noto Sans',sans-serif;font-size:.72rem;cursor:pointer}
+
+/* ── MAIN APP ── */
+.app{display:none}
+.app.visible{display:block}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px 8px;position:sticky;top:0;z-index:100}
+.header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px}
+.header-left{display:flex;align-items:center;gap:10px}
+.header h1{font-family:'Rajdhani',sans-serif;font-size:1.1rem;font-weight:700;letter-spacing:.1em;color:var(--accent2);text-transform:uppercase}
+.active-user-badge{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface2);border:1px solid var(--border-bright);
+  border-radius:20px;padding:4px 10px 4px 8px;cursor:pointer;
+  transition:all .15s;
+}
+.active-user-badge:hover{border-color:var(--accent)}
+.active-user-dot{width:8px;height:8px;border-radius:50%;background:var(--today-bright)}
+.active-user-name{font-family:'Rajdhani',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.06em;color:var(--text)}
+.active-user-switch{font-size:.6rem;color:var(--text-dim)}
+.header-date{font-size:.65rem;color:var(--text-dim);font-family:'Rajdhani',sans-serif}
+.progress-wrap{display:flex;align-items:center;gap:8px}
+.progress-track{flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--today-bright));border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.progress-pct{font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:700;color:var(--accent2);min-width:34px;text-align:right}
+.progress-counts{font-size:.6rem;color:var(--text-dim);min-width:68px;text-align:right}
+
+/* TABS */
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:69px;z-index:99}
+.tab-btn{flex:1;padding:9px;background:transparent;border:none;color:var(--text-dim);font-family:'Rajdhani',sans-serif;font-size:.8rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+
+main{padding:10px 10px 90px}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+/* LEGEND */
+.legend{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;padding:7px 10px;margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.legend-item{display:flex;align-items:center;gap:4px;font-size:.6rem;color:var(--text-dim)}
+.leg-dot{width:9px;height:9px;border-radius:3px}
+.l-today{background:var(--today)}.l-yesterday{background:var(--yesterday)}.l-stale{background:var(--stale)}
+.l-none{background:var(--surface2);border:1px solid var(--border)}.l-bath{background:var(--bath-done)}.l-util{background:var(--util-done)}
+
+/* SECTIONS */
+.section{margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.section-title{font-family:'Rajdhani',sans-serif;font-size:.86rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mid)}
+.section-meta{display:flex;align-items:center;gap:6px}
+.section-badge{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--border);color:var(--text-dim)}
+.section-badge.complete{background:var(--today);color:#fff}
+.section-chevron{color:var(--text-dim);font-size:.62rem;transition:transform .2s}
+.section.collapsed .section-chevron{transform:rotate(-90deg)}
+.section-body{padding:7px;display:flex;flex-wrap:wrap;gap:5px;align-items:flex-start}
+.section.collapsed .section-body{display:none}
+
+/* BUTTONS */
+.room-btn,.bath-btn,.util-btn{border:none;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:all .12s ease;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.room-btn:active,.bath-btn:active,.util-btn:active{transform:scale(.88)}
+
+.room-btn{width:50px;min-height:50px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:.8rem;font-weight:600;gap:2px;padding:4px 2px;line-height:1}
+.room-btn .r-label{font-size:.76rem;font-weight:700}
+.room-btn .r-who{font-size:.56rem;font-weight:700;opacity:.95}
+.room-btn .r-date{font-size:.48rem;font-family:'Noto Sans',sans-serif;opacity:.78}
+.room-btn.today{background:var(--today);border-color:var(--today-bright);color:#fff}
+.room-btn.yesterday{background:var(--yesterday);border-color:var(--yesterday-bright);color:#fff}
+.room-btn.stale{background:var(--stale);border-color:var(--stale-bright);color:#fff}
+.room-btn.other-today{background:var(--today);border-color:var(--today-bright);color:#fff;opacity:.75}
+
+.bath-btn{width:50px;height:25px;background:transparent;border:1.5px dashed var(--border-bright);border-radius:5px;color:var(--text-dim);font-size:.57rem;font-weight:600;letter-spacing:.03em;flex-direction:row;gap:2px}
+.bath-btn.today{background:var(--today);border:1.5px solid var(--today-bright);color:#fff}
+.bath-btn.yesterday{background:var(--yesterday);border:1.5px solid var(--yesterday-bright);color:#fff}
+.bath-btn.stale{background:var(--stale);border:1.5px solid var(--stale-bright);color:#fff}
+
+.util-btn{width:60px;min-height:40px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text-mid);font-size:.55rem;font-weight:500;gap:2px;padding:4px 3px;text-align:center;line-height:1.2;font-family:'Noto Sans',sans-serif}
+.util-btn .u-icon{font-size:.85rem;line-height:1}
+.util-btn .u-who{font-size:.5rem;font-family:'Rajdhani',sans-serif;font-weight:700;opacity:.9}
+.util-btn.today{background:var(--util-done);border-color:var(--util-bright);color:#fff}
+.util-btn.yesterday{background:#7c3aed;border-color:var(--util-bright);color:#fff}
+.util-btn.stale{background:#5b21b6;border-color:#8b5cf6;color:#fde68a}
+
+/* HISTORY */
+.history-filters{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.filter-btn{padding:5px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;color:var(--text-dim);font-family:'Rajdhani',sans-serif;font-size:.7rem;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:all .15s}
+.filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.history-list{display:flex;flex-direction:column;gap:6px}
+.history-entry{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between}
+.history-left{display:flex;flex-direction:column;gap:2px}
+.history-item-name{font-family:'Rajdhani',sans-serif;font-size:.83rem;font-weight:700;color:var(--text)}
+.history-section{font-size:.6rem;color:var(--text-dim)}
+.history-right{text-align:right}
+.history-who{font-family:'Rajdhani',sans-serif;font-size:.78rem;font-weight:700;color:var(--accent2)}
+.history-when{font-size:.58rem;color:var(--text-dim)}
+.history-empty{text-align:center;padding:32px;color:var(--text-dim);font-size:.8rem}
+
+/* CONFIRM MODAL (for overwrite) */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border-bright);border-radius:16px 16px 0 0;padding:18px 16px 28px;width:100%;max-width:480px;animation:slideUp .18s ease}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2);margin-bottom:3px}
+.modal-sub{font-size:.7rem;color:var(--text-dim);margin-bottom:14px;line-height:1.5}
+.modal-history{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:14px;font-size:.66rem;color:var(--text-mid);max-height:90px;overflow-y:auto}
+.modal-history-title{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:700;color:var(--text-dim);letter-spacing:.06em;margin-bottom:5px;text-transform:uppercase}
+.modal-history-entry{margin-bottom:3px;line-height:1.4}
+.modal-actions{display:flex;flex-direction:column;gap:7px}
+.modal-action-btn{width:100%;padding:12px;border-radius:9px;font-family:'Rajdhani',sans-serif;font-size:.88rem;font-weight:700;letter-spacing:.06em;cursor:pointer;transition:all .15s;border:1.5px solid}
+.modal-action-btn.primary{background:var(--today);border-color:var(--today-bright);color:#fff}
+.modal-action-btn.danger{background:transparent;border-color:var(--danger);color:var(--danger)}
+.modal-action-btn.secondary{background:transparent;border-color:var(--border);color:var(--text-dim)}
+.modal-action-btn:active{transform:scale(.97)}
+
+/* SWITCH USER MODAL */
+.switch-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;align-items:center;justify-content:center;padding:24px}
+.switch-overlay.open{display:flex}
+.switch-modal{background:var(--surface);border:1px solid var(--border-bright);border-radius:16px;padding:20px 16px;width:100%;max-width:340px;animation:slideUp .18s ease}
+.switch-title{font-family:'Rajdhani',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.1em;color:var(--accent2);text-transform:uppercase;margin-bottom:4px;text-align:center}
+.switch-sub{font-size:.7rem;color:var(--text-dim);text-align:center;margin-bottom:16px}
+.switch-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.switch-btn{padding:16px 8px;background:var(--surface2);border:2px solid var(--border);border-radius:10px;color:var(--text);font-family:'Rajdhani',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;transition:all .15s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px}
+.switch-btn:active{transform:scale(.95)}
+.switch-btn.current{border-color:var(--accent);color:var(--accent2)}
+.switch-btn .sw-avatar{font-size:1.5rem}
+.switch-cancel{width:100%;padding:10px;background:transparent;border:none;color:var(--text-dim);font-family:'Noto Sans',sans-serif;font-size:.72rem;cursor:pointer;margin-top:10px}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:400;gap:12px}
+.loading-spinner{width:34px;height:34px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-family:'Rajdhani',sans-serif;font-size:.82rem;color:var(--text-dim);letter-spacing:.08em}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--border-bright);border-radius:20px;padding:8px 18px;font-size:.73rem;color:var(--text);opacity:0;transition:all .3s;z-index:250;white-space:nowrap;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* FOOTER */
+.footer{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:8px 14px 14px;display:flex;gap:8px;z-index:100}
+.reset-btn{flex:1;padding:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-family:'Rajdhani',sans-serif;font-size:.76rem;font-weight:600;letter-spacing:.06em;cursor:pointer;transition:all .2s}
+.reset-btn:hover{border-color:var(--danger);color:var(--danger)}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">LOADING...</div>
+</div>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen" style="display:none">
+  <div class="login-logo">🧹</div>
+  <div class="login-title">SVM Housekeeping</div>
+  <div class="login-sub">Who's working today?</div>
+  <div class="login-grid" id="loginGrid"></div>
+</div>
+
+<!-- Main App -->
+<div class="app" id="appScreen">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-left">
+        <h1>SVM HK</h1>
+        <div class="active-user-badge" onclick="openSwitchModal()">
+          <div class="active-user-dot"></div>
+          <div class="active-user-name" id="activeUserName">—</div>
+          <div class="active-user-switch">▾ switch</div>
+        </div>
+      </div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-pct" id="progressPct">0%</div>
+      <div class="progress-counts" id="progressCounts">0/0 today</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('checklist',this)">📋 Checklist</button>
+    <button class="tab-btn" onclick="switchTab('history',this)">📅 History</button>
+  </div>
+
+  <main>
+    <div class="tab-panel active" id="tab-checklist">
+      <div class="legend">
+        <div class="legend-item"><div class="leg-dot l-today"></div> Today</div>
+        <div class="legend-item"><div class="leg-dot l-yesterday"></div> Yesterday</div>
+        <div class="legend-item"><div class="leg-dot l-stale"></div> 2+ Days</div>
+        <div class="legend-item"><div class="leg-dot l-none"></div> Never Logged</div>
+        <div class="legend-item"><div class="leg-dot l-bath"></div> Bath</div>
+        <div class="legend-item"><div class="leg-dot l-util"></div> Area/Util</div>
+      </div>
+      <div id="checklistContent"></div>
+    </div>
+    <div class="tab-panel" id="tab-history">
+      <div class="history-filters">
+        <button class="filter-btn active" onclick="filterHistory('all',this)">All</button>
+        <button class="filter-btn" onclick="filterHistory('EC',this)">E. Carr</button>
+        <button class="filter-btn" onclick="filterHistory('AC',this)">A. Crawford</button>
+        <button class="filter-btn" onclick="filterHistory('CW',this)">C. White</button>
+        <button class="filter-btn" onclick="filterHistory('BL',this)">B. Lucas</button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Confirm/Detail Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="modal-history" id="modalHistory" style="display:none">
+      <div class="modal-history-title">🕐 Clean History</div>
+      <div id="modalHistoryEntries"></div>
+    </div>
+    <div class="modal-actions" id="modalActions"></div>
+  </div>
+</div>
+
+<!-- Switch User Modal -->
+<div class="switch-overlay" id="switchOverlay">
+  <div class="switch-modal">
+    <div class="switch-title">Switch User</div>
+    <div class="switch-sub">Who's taking over?</div>
+    <div class="switch-grid" id="switchGrid"></div>
+    <button class="switch-cancel" onclick="closeSwitchModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- Avatar Picker -->
+<div class="avatar-overlay" id="avatarOverlay">
+  <div class="avatar-modal">
+    <div class="avatar-modal-title">🎨 Pick Your Avatar</div>
+    <div class="avatar-modal-sub" id="avatarPickerSub">Choose an emoji that represents you!</div>
+    <div class="avatar-grid" id="avatarGrid"></div>
+    <button class="avatar-cancel" onclick="closeAvatarPicker()">Cancel</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="footer" id="appFooter">
+  <button class="reset-btn" onclick="confirmReset()">🔄 Reset Today</button>
+  <button class="reset-btn" id="syncBtn" onclick="manualSync()">📡 Sync</button>
+</div>
+
+<script>
+const API_URL="https://script.google.com/macros/s/AKfycbyCb4qqMLpVJdfFZlH6_9vT6088qcxzMuPSP3HF8acDWxFCWjH8FbGdv9bwt59xoz4GTg/exec";
+
+const STAFF=[
+  {name:"E. Carr",initials:"EC",color:"#3b82f6",avatar:"👩"},
+  {name:"A. Crawford",initials:"AC",color:"#8b5cf6",avatar:"👩"},
+  {name:"C. White",initials:"CW",color:"#06b6d4",avatar:"👩"},
+  {name:"B. Lucas",initials:"BL",color:"#f59e0b",avatar:"🧑"},
+];
+
+const AVATAR_OPTIONS=[
+  "😀","😎","🤩","🥳","😇","🤓","😏","🧐",
+  "😄","😁","🙂","😉","😋","😜","🤪","😬",
+  "🧑","👩","👨","👧","👦","🧓","👴","👵",
+  "🐶","🐱","🦊","🐻","🐼","🐨","🦁","🐯",
+  "🐸","🐧","🦆","🦉","🐺","🦝","🐙","🦀",
+  "🌸","⭐","🌈","🔥","💎","🎯","🎮","🎨",
+  "🍕","🍦","🧁","🍩","🍪","🎸","🚀","⚡",
+  "🍀","🌺","🌙","☀️","🎃","🏆","💡","🎪",
+];
+
+// Load saved avatars from localStorage
+function loadAvatars(){
+  STAFF.forEach(p=>{
+    const saved=localStorage.getItem('svm_avatar_'+p.initials);
+    if(!saved||saved==='null'||!saved.trim()||!AVATAR_OPTIONS.includes(saved)){
+      localStorage.removeItem('svm_avatar_'+p.initials);
+      return;
+    }
+    p.avatar=saved;
+  });
+}
+
+// Avatar picker state
+let avatarPickerTarget=null; // initials of who we're picking for
+let avatarPickerMode=null;   // 'login' or 'edit'
+let avatarPickerSelected=null;
+
+const BUILDING=[
+  {id:"front",label:"Front Entrance",items:[
+    {id:"vestibule",label:"Vestibule",type:"area",icon:"🚪"},
+    {id:"main_corridor",label:"Main Corridor",type:"area",icon:"🛤️"},
+    {id:"pub",label:"Pub",type:"area",icon:"🍺"},
+    {id:"admin_corridor",label:"Admin Corridor",type:"area",icon:"📋"},
+    {id:"mens_front_wc",label:"Men's Restroom",type:"area",icon:"🚹"},
+    {id:"womens_front_wc",label:"Women's Restroom",type:"area",icon:"🚺"},
+    {id:"activities",label:"Activities",type:"area",icon:"🎨"},
+    {id:"salon",label:"Salon",type:"area",icon:"💇"},
+  ]},
+  {id:"dining",label:"Dining / Back Area",items:[
+    {id:"dining_room",label:"Dining Room",type:"area",icon:"🍽️"},
+    {id:"ice_station",label:"Ice Station",type:"area",icon:"🧊"},
+    {id:"break_room",label:"Break Room",type:"area",icon:"☕"},
+    {id:"emp_back_hall",label:"Back Hallway",type:"area",icon:"🛤️"},
+    {id:"mens_back_wc",label:"Men's Restroom",type:"area",icon:"🚹"},
+    {id:"womens_back_wc",label:"Women's Restroom",type:"area",icon:"🚺"},
+  ]},
+  {id:"core",label:"Center Core",items:[
+    {id:"nurses_station",label:"Nurse's Station",type:"area",icon:"🏥"},
+    {id:"fireplace",label:"Fireplace Area",type:"area",icon:"🔥"},
+    {id:"ab_lounge",label:"A-B Lounge",type:"area",icon:"🛋️"},
+    {id:"cd_lounge",label:"C-D Lounge",type:"area",icon:"🛋️"},
+    {id:"classroom",label:"Classroom",type:"area",icon:"📚"},
+    {id:"chapel",label:"Chapel",type:"area",icon:"⛪"},
+  ]},
+  {id:"a_hall",label:"A Hall",items:[
+    {id:"a1",label:"Rm 1",type:"room"},{id:"bath_1_2",label:"Bath 1/2",type:"bath"},{id:"a2",label:"Rm 2",type:"room"},
+    {id:"a3",label:"Rm 3",type:"room"},{id:"bath_3_4",label:"Bath 3/4",type:"bath"},{id:"a4",label:"Rm 4",type:"room"},
+    {id:"a5",label:"Rm 5",type:"room"},{id:"bath_5_6",label:"Bath 5/6",type:"bath"},{id:"a6",label:"Rm 6",type:"room"},
+    {id:"a7",label:"Rm 7",type:"room"},{id:"bath_7_8",label:"Bath 7/8",type:"bath"},{id:"a8",label:"Rm 8",type:"room"},
+    {id:"a_utility",label:"Utility",type:"util",icon:"🔧"},
+    {id:"a_shower",label:"Shower Rm",type:"util",icon:"🚿"},
+    {id:"a_hk",label:"HK Closet",type:"util",icon:"🧹"},
+    {id:"a9",label:"Rm 9",type:"room"},{id:"bath_9_10",label:"Bath 9/10",type:"bath"},{id:"a10",label:"Rm 10",type:"room"},
+    {id:"a11",label:"Rm 11",type:"room"},{id:"bath_11_12",label:"Bath 11/12",type:"bath"},{id:"a12",label:"Rm 12",type:"room"},
+    {id:"a13",label:"Rm 13",type:"room"},{id:"bath_13_14",label:"Bath 13/14",type:"bath"},{id:"a14",label:"Rm 14",type:"room"},
+    {id:"a15",label:"Rm 15",type:"room"},{id:"bath_15",label:"Bath 15",type:"bath"},
+  ]},
+  {id:"b_hall",label:"B Hall",items:[
+    {id:"b16",label:"Rm 16",type:"room"},{id:"bath_16_17",label:"Bath 16/17",type:"bath"},{id:"b17",label:"Rm 17",type:"room"},
+    {id:"b18",label:"Rm 18",type:"room"},{id:"bath_18_19",label:"Bath 18/19",type:"bath"},{id:"b19",label:"Rm 19",type:"room"},
+    {id:"b20",label:"Rm 20",type:"room"},{id:"bath_20_21",label:"Bath 20/21",type:"bath"},{id:"b21",label:"Rm 21",type:"room"},
+    {id:"b22",label:"Rm 22",type:"room"},{id:"bath_22_23",label:"Bath 22/23",type:"bath"},{id:"b23",label:"Rm 23",type:"room"},
+    {id:"b_utility",label:"Utility",type:"util",icon:"🔧"},
+    {id:"b_shower",label:"Shower Rm",type:"util",icon:"🚿"},
+    {id:"b_hk",label:"HK Closet",type:"util",icon:"🧹"},
+    {id:"b24",label:"Rm 24",type:"room"},{id:"bath_24_25",label:"Bath 24/25",type:"bath"},{id:"b25",label:"Rm 25",type:"room"},
+    {id:"b26",label:"Rm 26",type:"room"},{id:"bath_26_27",label:"Bath 26/27",type:"bath"},{id:"b27",label:"Rm 27",type:"room"},
+    {id:"b28",label:"Rm 28",type:"room"},{id:"bath_28_29",label:"Bath 28/29",type:"bath"},{id:"b29",label:"Rm 29",type:"room"},
+    {id:"b30",label:"Rm 30",type:"room"},{id:"bath_30",label:"Bath 30",type:"bath"},
+    {id:"b31",label:"Rm 31",type:"room"},{id:"bath_31",label:"Bath 31",type:"bath"},
+  ]},
+  {id:"c_hall",label:"C Hall",items:[
+    {id:"c32",label:"Rm 32",type:"room"},{id:"bath_32",label:"Bath 32",type:"bath"},
+    {id:"c33",label:"Rm 33",type:"room"},{id:"bath_33",label:"Bath 33",type:"bath"},
+    {id:"c34",label:"Rm 34",type:"room"},{id:"bath_34_35",label:"Bath 34/35",type:"bath"},{id:"c35",label:"Rm 35",type:"room"},
+    {id:"c36",label:"Rm 36",type:"room"},{id:"bath_36_37",label:"Bath 36/37",type:"bath"},{id:"c37",label:"Rm 37",type:"room"},
+    {id:"c38",label:"Rm 38",type:"room"},{id:"bath_38_39",label:"Bath 38/39",type:"bath"},{id:"c39",label:"Rm 39",type:"room"},
+    {id:"c_utility",label:"Utility",type:"util",icon:"🔧"},
+    {id:"c_shower",label:"Shower Rm",type:"util",icon:"🚿"},
+    {id:"c_hk",label:"HK Closet",type:"util",icon:"🧹"},
+    {id:"c40",label:"Rm 40",type:"room"},{id:"bath_40_41",label:"Bath 40/41",type:"bath"},{id:"c41",label:"Rm 41",type:"room"},
+    {id:"c42",label:"Rm 42",type:"room"},{id:"bath_42_43",label:"Bath 42/43",type:"bath"},{id:"c43",label:"Rm 43",type:"room"},
+    {id:"c44",label:"Rm 44",type:"room"},{id:"bath_44_45",label:"Bath 44/45",type:"bath"},{id:"c45",label:"Rm 45",type:"room"},
+    {id:"c46",label:"Rm 46",type:"room"},{id:"bath_46_47",label:"Bath 46/47",type:"bath"},{id:"c47",label:"Rm 47",type:"room"},
+  ]},
+  {id:"d_hall",label:"D Hall",items:[
+    {id:"d48",label:"Rm 48",type:"room"},{id:"bath_48",label:"Bath 48",type:"bath"},
+    {id:"d_emp_bath",label:"Emp. Bath",type:"util",icon:"🚻"},
+    {id:"d49",label:"Rm 49",type:"room"},{id:"bath_49_50",label:"Bath 49/50",type:"bath"},{id:"d50",label:"Rm 50",type:"room"},
+    {id:"d51",label:"Rm 51",type:"room"},{id:"bath_51_52",label:"Bath 51/52",type:"bath"},{id:"d52",label:"Rm 52",type:"room"},
+    {id:"d53",label:"Rm 53",type:"room"},{id:"bath_53_54",label:"Bath 53/54",type:"bath"},{id:"d54",label:"Rm 54",type:"room"},
+    {id:"d_utility",label:"Utility",type:"util",icon:"🔧"},
+    {id:"d_shower",label:"Shower Rm",type:"util",icon:"🚿"},
+    {id:"d_hk",label:"HK Closet",type:"util",icon:"🧹"},
+    {id:"d55",label:"Rm 55",type:"room"},{id:"bath_55_56",label:"Bath 55/56",type:"bath"},{id:"d56",label:"Rm 56",type:"room"},
+    {id:"d57",label:"Rm 57",type:"room"},{id:"bath_57_58",label:"Bath 57/58",type:"bath"},{id:"d58",label:"Rm 58",type:"room"},
+    {id:"d59",label:"Rm 59",type:"room"},{id:"bath_59_60",label:"Bath 59/60",type:"bath"},{id:"d60",label:"Rm 60",type:"room"},
+    {id:"d61",label:"Rm 61",type:"room"},{id:"bath_61_62",label:"Bath 61/62",type:"bath"},{id:"d62",label:"Rm 62",type:"room"},
+  ]},
+  {id:"therapy",label:"Therapy Addition",items:[
+    {id:"therapy_gym",label:"Therapy Gym",type:"area",icon:"🏋️"},
+    {id:"therapy_bath",label:"Therapy Bath",type:"area",icon:"🚿"},
+  ]},
+];
+
+let state={};
+let activeUser=null; // {name, initials, color, avatar}
+let currentItemId=null;
+let historyFilter='all';
+
+// ── Helpers ──
+function todayStr(){
+  const d=new Date();
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  const yyyy=d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
+}
+function getAgeClass(d){
+  if(!d)return'';
+  // Parse mm/dd/yyyy safely without Date constructor timezone issues
+  const parts=String(d).split(/[\/\-T]/);
+  let yr,mo,dy;
+  if(String(d).includes('T')){
+    // ISO fallback — extract date part only
+    const iso=String(d).split('T')[0].split('-');
+    yr=parseInt(iso[0]);mo=parseInt(iso[1])-1;dy=parseInt(iso[2]);
+  } else {
+    mo=parseInt(parts[0])-1;dy=parseInt(parts[1]);yr=parseInt(parts[2]);
+  }
+  const today=new Date();today.setHours(0,0,0,0);
+  const dt=new Date(yr,mo,dy);
+  const diff=Math.round((today-dt)/86400000);
+  if(diff===0)return'today';if(diff===1)return'yesterday';return'stale';
+}
+function getTime(){return new Date().toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true})}
+function updateDate(){document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}
+function findItem(id){for(const s of BUILDING){const i=s.items.find(x=>x.id===id);if(i)return i}return null}
+function getSectionFor(id){return BUILDING.find(s=>s.items.some(i=>i.id===id))}
+
+// ── API ──
+async function apiGet(){
+  const res=await fetch(API_URL+'?action=getState');
+  const data=await res.json();
+  return data.state||{};
+}
+async function apiPost(payload){
+  const res=await fetch(API_URL,{method:'POST',body:JSON.stringify(payload)});
+  return await res.json();
+}
+
+// ── Login ──
+function buildLoginScreen(){
+  const grid=document.getElementById('loginGrid');
+  grid.innerHTML='';
+  STAFF.forEach(person=>{
+    const btn=document.createElement('button');
+    btn.className='login-btn';
+    btn.id='login_btn_'+person.initials;
+    btn.innerHTML=`
+      <div class="login-avatar" id="login_av_${person.initials}">${person.avatar}</div>
+      <div class="login-name">${person.name}</div>
+      <div class="edit-avatar-hint">✏️ hold to change</div>
+    `;
+    // Tap = login, long press = pick avatar
+    let pressTimer=null;
+    btn.addEventListener('touchstart',()=>{
+      pressTimer=setTimeout(()=>{pressTimer=null;openAvatarPicker(person.initials,'login')},500);
+    },{passive:true});
+    btn.addEventListener('touchend',()=>{
+      if(pressTimer){clearTimeout(pressTimer);pressTimer=null;selectUser(person)}
+    });
+    btn.addEventListener('touchmove',()=>{if(pressTimer){clearTimeout(pressTimer);pressTimer=null}},{passive:true});
+    // Desktop fallback
+    btn.addEventListener('click',(e)=>{
+      if(!('ontouchstart' in window))selectUser(person);
+    });
+    grid.appendChild(btn);
+  });
+}
+
+function selectUser(person){
+  // Refresh avatar from STAFF (may have been updated)
+  const fresh=STAFF.find(s=>s.initials===person.initials);
+  activeUser=fresh||person;
+  localStorage.setItem('svm_active_user',activeUser.initials);
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appScreen').classList.add('visible');
+  updateActiveUserBadge();
+  buildChecklist();
+  updateDate();
+}
+
+function updateActiveUserBadge(){
+  if(!activeUser)return;
+  document.getElementById('activeUserName').textContent=activeUser.avatar+' '+activeUser.name;
+}
+
+function openSwitchModal(){
+  const grid=document.getElementById('switchGrid');
+  grid.innerHTML='';
+  STAFF.forEach(person=>{
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;flex-direction:column;gap:4px;';
+
+    const btn=document.createElement('button');
+    btn.className='switch-btn'+(activeUser&&activeUser.initials===person.initials?' current':'');
+    btn.innerHTML=`<div class="sw-avatar">${person.avatar}</div><div>${person.name}</div>`;
+    btn.onclick=()=>{closeSwitchModal();selectUser(person)};
+
+    const editBtn=document.createElement('button');
+    editBtn.style.cssText='background:transparent;border:none;color:var(--text-dim);font-size:.6rem;cursor:pointer;padding:2px;font-family:Noto Sans,sans-serif;';
+    editBtn.textContent='✏️ change avatar';
+    editBtn.onclick=(e)=>{e.stopPropagation();closeSwitchModal();openAvatarPicker(person.initials,'edit')};
+
+    wrap.appendChild(btn);wrap.appendChild(editBtn);
+    grid.appendChild(wrap);
+  });
+  document.getElementById('switchOverlay').classList.add('open');
+}
+function closeSwitchModal(){document.getElementById('switchOverlay').classList.remove('open')}
+
+// ── Avatar Picker ──
+function openAvatarPicker(initials, mode){
+  avatarPickerTarget=initials;
+  avatarPickerMode=mode;
+  const person=STAFF.find(s=>s.initials===initials);
+  avatarPickerSelected=person.avatar;
+
+  document.getElementById('avatarPickerSub').textContent=`Picking for ${person.name} — tap to select`;
+
+  const grid=document.getElementById('avatarGrid');
+  grid.innerHTML='';
+  AVATAR_OPTIONS.forEach(emoji=>{
+    const btn=document.createElement('button');
+    btn.className='avatar-opt'+(emoji===avatarPickerSelected?' selected':'');
+    btn.textContent=emoji;
+    btn.onclick=()=>{
+      avatarPickerSelected=emoji;
+      grid.querySelectorAll('.avatar-opt').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      confirmAvatarPick();
+    };
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('avatarOverlay').classList.add('open');
+}
+
+function confirmAvatarPick(){
+  if(!avatarPickerTarget||!avatarPickerSelected)return;
+  const person=STAFF.find(s=>s.initials===avatarPickerTarget);
+  if(!person)return;
+  const mode=avatarPickerMode; // capture before closeAvatarPicker nulls it
+  person.avatar=avatarPickerSelected;
+  localStorage.setItem('svm_avatar_'+person.initials,avatarPickerSelected);
+  closeAvatarPicker();
+
+  // Refresh login screen avatar if visible
+  const loginAv=document.getElementById('login_av_'+person.initials);
+  if(loginAv)loginAv.textContent=person.avatar;
+
+  // Refresh active user badge if it's the current user
+  if(activeUser&&activeUser.initials===person.initials){
+    activeUser.avatar=person.avatar;
+    updateActiveUserBadge();
+  }
+
+  if(mode==='login'){
+    selectUser(person);
+  } else {
+    showToast(`${person.avatar} Avatar saved for ${person.name}!`);
+    openSwitchModal();
+  }
+}
+
+function closeAvatarPicker(){
+  document.getElementById('avatarOverlay').classList.remove('open');
+  avatarPickerTarget=null;avatarPickerMode=null;avatarPickerSelected=null;
+}
+
+// ── Checklist ──
+function buildChecklist(){
+  const content=document.getElementById('checklistContent');
+  content.innerHTML='';
+  BUILDING.forEach(section=>{
+    const done=section.items.filter(i=>state[i.id]).length;
+    const total=section.items.length;
+    const sec=document.createElement('div');
+    sec.className='section';sec.id='sec_'+section.id;
+    sec.innerHTML=`<div class="section-header" onclick="toggleSection('${section.id}')">
+      <div class="section-title">${section.label}</div>
+      <div class="section-meta">
+        <div class="section-badge ${done===total?'complete':''}" id="badge_${section.id}">${done}/${total}</div>
+        <div class="section-chevron">▼</div>
+      </div></div>
+      <div class="section-body" id="body_${section.id}"></div>`;
+    content.appendChild(sec);
+    const body=sec.querySelector('.section-body');
+    section.items.forEach(item=>body.appendChild(buildItem(item)));
+  });
+  updateProgress();
+}
+
+function buildItem(item){
+  const s=state[item.id];
+  const age=s?getAgeClass(s.date):'';
+  const isMe=s&&activeUser&&s.initials===activeUser.initials&&age==='today';
+  const isOtherToday=s&&activeUser&&s.initials!==activeUser.initials&&age==='today';
+
+  if(item.type==='room'){
+    const btn=document.createElement('button');
+    btn.className=`room-btn ${age}${isOtherToday?' other-today':''}`;
+    btn.id='btn_'+item.id;
+    btn.onclick=()=>handleTap(item.id);
+    btn.innerHTML=`<span class="r-label">${item.label}</span>`
+      +(s?`<span class="r-who">${s.initials}</span><span class="r-date">${s.date}</span>`:'');
+    return btn;
+  }
+  if(item.type==='bath'){
+    const btn=document.createElement('button');
+    btn.className=`bath-btn ${age}`;btn.id='btn_'+item.id;
+    btn.onclick=()=>handleTap(item.id);
+    btn.innerHTML=s?`🛁 ${s.initials}`:`🛁 ${item.label.replace('Bath ','')}`;
+    return btn;
+  }
+  const btn=document.createElement('button');
+  btn.className=`util-btn ${age}`;btn.id='btn_'+item.id;
+  btn.onclick=()=>handleTap(item.id);
+  btn.innerHTML=`<span class="u-icon">${item.icon||'📦'}</span><span style="font-size:.52rem;text-align:center;line-height:1.2">${item.label}</span>`
+    +(s?`<span class="u-who">${s.initials}</span>`:'');
+  return btn;
+}
+
+function refreshItem(id){
+  const item=findItem(id);if(!item)return;
+  const old=document.getElementById('btn_'+id);if(!old)return;
+  old.parentNode.replaceChild(buildItem(item),old);
+}
+
+function toggleSection(id){document.getElementById('sec_'+id).classList.toggle('collapsed')}
+
+function updateSectionBadge(section){
+  if(!section)return;
+  const done=section.items.filter(i=>state[i.id]).length;
+  const total=section.items.length;
+  const badge=document.getElementById('badge_'+section.id);
+  if(badge){badge.textContent=`${done}/${total}`;badge.className='section-badge'+(done===total?' complete':'')}
+}
+
+function updateProgress(){
+  let total=0,done=0;
+  BUILDING.forEach(s=>{
+    total+=s.items.length;
+    done+=s.items.filter(i=>state[i.id]&&getAgeClass(state[i.id].date)==='today').length;
+  });
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('progressCounts').textContent=`${done}/${total} today`;
+}
+
+// ── Tap Logic ──
+function handleTap(itemId){
+  if(!activeUser)return;
+  const s=state[itemId];
+  const item=findItem(itemId);
+
+  // Not yet marked → instant mark as active user
+  if(!s){
+    instantMark(itemId);
+    return;
+  }
+
+  // Marked by me today → show undo option
+  if(s.initials===activeUser.initials&&getAgeClass(s.date)==='today'){
+    openModal(itemId,'mine');
+    return;
+  }
+
+  // Marked by someone else today → confirm overwrite
+  if(getAgeClass(s.date)==='today'){
+    openModal(itemId,'overwrite');
+    return;
+  }
+
+  // Marked on a previous day → just re-mark instantly
+  instantMark(itemId);
+}
+
+async function instantMark(itemId){
+  const item=findItem(itemId);
+  const section=getSectionFor(itemId);
+  const date=todayStr();const time=getTime();
+  state[itemId]={name:activeUser.name,initials:activeUser.initials,date,time};
+  refreshItem(itemId);updateSectionBadge(section);updateProgress();
+  showToast(`✅ ${item.label}`);
+  try{
+    await apiPost({action:'markItem',itemId,itemLabel:item.label,section:section.label,
+      staffName:activeUser.name,initials:activeUser.initials,date,time});
+  }catch(e){showToast('⚠️ Sync failed')}
+}
+
+async function doUnmark(itemId){
+  const item=findItem(itemId);
+  const section=getSectionFor(itemId);
+  const s=state[itemId];
+  delete state[itemId];
+  closeModal();refreshItem(itemId);updateSectionBadge(section);updateProgress();
+  showToast(`↩ ${item.label} unmarked`);
+  try{
+    await apiPost({action:'unmarkItem',itemId,itemLabel:item.label,section:section.label,
+      staffName:s?.name,initials:s?.initials,date:todayStr(),time:getTime()});
+  }catch(e){}
+}
+
+// ── Modal ──
+function openModal(itemId,mode){
+  currentItemId=itemId;
+  const item=findItem(itemId);
+  const s=state[itemId];
+  const actions=document.getElementById('modalActions');
+  actions.innerHTML='';
+
+  if(mode==='mine'){
+    document.getElementById('modalTitle').textContent=`✅ ${item.label}`;
+    document.getElementById('modalSub').textContent=`You marked this at ${s.time}. Need to undo?`;
+    loadModalHistory(itemId);
+    const undoBtn=document.createElement('button');
+    undoBtn.className='modal-action-btn danger';undoBtn.textContent='↩ Unmark this item';
+    undoBtn.onclick=()=>doUnmark(itemId);
+    actions.appendChild(undoBtn);
+    const cancelBtn=document.createElement('button');
+    cancelBtn.className='modal-action-btn secondary';cancelBtn.textContent='Cancel';
+    cancelBtn.onclick=closeModal;
+    actions.appendChild(cancelBtn);
+  }
+
+  if(mode==='overwrite'){
+    const prevPerson=STAFF.find(p=>p.initials===s.initials);
+    const prevAvatar=prevPerson?prevPerson.avatar:'';
+    document.getElementById('modalTitle').textContent=`⚠️ Already Cleaned`;
+    document.getElementById('modalSub').textContent=`${prevAvatar} ${s.staffName||s.name||s.initials} marked this today at ${s.time}.\nDo you want to mark it as cleaned by you instead?`;
+    document.getElementById('modalHistory').style.display='none';
+    const overBtn=document.createElement('button');
+    overBtn.className='modal-action-btn primary';overBtn.textContent=`Yes — mark as ${activeUser.name}`;
+    overBtn.onclick=()=>{closeModal();instantMark(itemId)};
+    actions.appendChild(overBtn);
+    const cancelBtn=document.createElement('button');
+    cancelBtn.className='modal-action-btn secondary';cancelBtn.textContent='Cancel — leave as is';
+    cancelBtn.onclick=closeModal;
+    actions.appendChild(cancelBtn);
+  }
+
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+  document.getElementById('modalHistory').style.display='none';
+  currentItemId=null;
+}
+
+async function loadModalHistory(itemId){
+  const histEl=document.getElementById('modalHistory');
+  const entriesEl=document.getElementById('modalHistoryEntries');
+  histEl.style.display='block';
+  entriesEl.innerHTML='<span style="color:var(--text-dim);font-size:.63rem">Loading...</span>';
+  try{
+    const data=await apiPost({action:'getHistory',itemId});
+    if(data.history&&data.history.length>0){
+      entriesEl.innerHTML=data.history.map(h=>`<div class="modal-history-entry">📅 ${h.date} at ${h.time} — <strong>${h.staffName}</strong></div>`).join('');
+    }else{
+      entriesEl.innerHTML='<span style="color:var(--text-dim);font-size:.63rem">No previous history</span>';
+    }
+  }catch(e){histEl.style.display='none'}
+}
+
+// ── History Tab ──
+function buildHistoryTab(){
+  const entries=[];
+  BUILDING.forEach(sec=>{
+    sec.items.forEach(item=>{
+      const s=state[item.id];
+      if(s)entries.push({itemLabel:item.label,section:sec.label,...s});
+    });
+  });
+  entries.sort((a,b)=>new Date(b.date+' '+b.time)-new Date(a.date+' '+a.time));
+  window._historyEntries=entries;
+  renderHistory();
+}
+
+function renderHistory(){
+  const list=document.getElementById('historyList');
+  const entries=window._historyEntries||[];
+  const filtered=historyFilter==='all'?entries:entries.filter(e=>e.initials===historyFilter);
+  if(!filtered.length){list.innerHTML='<div class="history-empty">No entries yet 🧹</div>';return}
+  list.innerHTML=filtered.map(e=>{
+    const person=STAFF.find(s=>s.initials===e.initials);
+    const avatar=person?person.avatar:'';
+    return `<div class="history-entry">
+      <div class="history-left"><div class="history-item-name">${e.itemLabel}</div><div class="history-section">${e.section}</div></div>
+      <div class="history-right"><div class="history-who">${avatar} ${e.staffName||e.name||e.initials}</div><div class="history-when">${e.date} · ${e.time}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function filterHistory(filter,btn){
+  historyFilter=filter;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');renderHistory();
+}
+
+function switchTab(tab,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');btn.classList.add('active');
+  if(tab==='history')buildHistoryTab();
+}
+
+let _toastTimer=null;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  if(_toastTimer)clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>{t.classList.remove('show');_toastTimer=null;},2200);
+}
+
+async function manualSync(){
+  const btn=document.getElementById('syncBtn');
+  btn.textContent='⏳ Syncing...';
+  btn.disabled=true;
+  try{
+    state=await apiGet();
+    buildChecklist();
+    if(document.getElementById('tab-history').classList.contains('active'))buildHistoryTab();
+    showToast('📡 Synced!');
+  }catch(e){
+    showToast('⚠️ Sync failed — check connection');
+  }finally{
+    btn.textContent='📡 Sync';
+    btn.disabled=false;
+  }
+}
+async function confirmReset(){
+  if(!activeUser)return;
+  const today=todayStr();
+  const myItems=Object.keys(state).filter(k=>state[k].date===today&&state[k].initials===activeUser.initials);
+  if(myItems.length===0){
+    showToast(`🤷 Nothing to reset for ${activeUser.name}!`);
+    return;
+  }
+  if(!confirm(`Reset ${activeUser.name}'s items for today? Other users' work is unaffected. History in the Sheet is preserved.`))return;
+  myItems.forEach(k=>delete state[k]);
+  buildChecklist();
+  if(document.getElementById('tab-history').classList.contains('active'))buildHistoryTab();
+  showToast(`🔄 ${activeUser.name}'s items reset`);
+  // Delete from Sheet so refresh doesn't bring them back
+  try{
+    await apiPost({
+      action:'resetUser',
+      initials:activeUser.initials,
+      staffName:activeUser.name,
+      date:today
+    });
+  }catch(e){showToast('⚠️ Reset locally but sync failed')}
+}
+
+// Close modals on overlay tap
+document.getElementById('modalOverlay').addEventListener('click',function(e){if(e.target===this)closeModal()});
+document.getElementById('switchOverlay').addEventListener('click',function(e){if(e.target===this)closeSwitchModal()});
+document.getElementById('avatarOverlay').addEventListener('click',function(e){if(e.target===this)closeAvatarPicker()});
+
+// ── Init ──
+async function init(){
+  updateDate();setInterval(updateDate,60000);
+  loadAvatars();
+  try{state=await apiGet();}catch(e){state={};}
+  document.getElementById('loadingOverlay').style.display='none';
+  const savedInitials=localStorage.getItem('svm_active_user');
+  const savedUser=savedInitials?STAFF.find(s=>s.initials===savedInitials):null;
+  if(savedUser){
+    selectUser(savedUser);
+  }else{
+    buildLoginScreen();
+    document.getElementById('loginScreen').style.display='flex';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
