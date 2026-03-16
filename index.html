@@ -134,6 +134,9 @@ main{padding:10px 10px 90px}
 .room-btn.yesterday{background:var(--yesterday);border-color:var(--yesterday-bright);color:#fff}
 .room-btn.stale{background:var(--stale);border-color:var(--stale-bright);color:#fff}
 .room-btn.other-today{background:var(--today);border-color:var(--today-bright);color:#fff;opacity:.75}
+.room-btn.pull{background:#b45309;border-color:#f59e0b;color:#fff}
+.room-btn.pull::after{content:'⭐';position:absolute;top:2px;right:3px;font-size:.5rem;line-height:1}
+.room-btn{position:relative;}
 
 .bath-btn{width:50px;height:25px;background:transparent;border:1.5px dashed var(--border-bright);border-radius:5px;color:var(--text-dim);font-size:.57rem;font-weight:600;letter-spacing:.03em;flex-direction:row;gap:2px}
 .bath-btn.today{background:var(--today);border:1.5px solid var(--today-bright);color:#fff}
@@ -258,6 +261,7 @@ main{padding:10px 10px 90px}
         <div class="legend-item"><div class="leg-dot l-none"></div> Never Logged</div>
         <div class="legend-item"><div class="leg-dot l-bath"></div> Bath</div>
         <div class="legend-item"><div class="leg-dot l-util"></div> Area/Util</div>
+        <div class="legend-item"><div class="leg-dot" style="background:#b45309"></div> ⭐ Room Pull</div>
       </div>
       <div id="checklistContent"></div>
     </div>
@@ -657,7 +661,8 @@ function buildItem(item){
 
   if(item.type==='room'){
     const btn=document.createElement('button');
-    btn.className=`room-btn ${age}${isOtherToday?' other-today':''}`;
+    const hasPull=isPullActive(state['pull_'+item.id]?.date);
+    btn.className=`room-btn ${age}${isOtherToday?' other-today':''}${hasPull?' pull':''}`;
     btn.id='btn_'+item.id;
     btn.onclick=()=>handleTap(item.id);
     btn.innerHTML=`<span class="r-label">${item.label}</span>`
@@ -697,7 +702,18 @@ function updateSectionBadge(section){
   if(fill)fill.style.width=(total?Math.round(done/total*100):0)+'%';
 }
 
-function updateProgress(){
+function isPullActive(pullDate){
+  if(!pullDate)return false;
+  const parts=String(pullDate).split(/[\/\-T]/);
+  let yr,mo,dy;
+  if(String(pullDate).includes('T')){
+    const iso=String(pullDate).split('T')[0].split('-');
+    yr=parseInt(iso[0]);mo=parseInt(iso[1])-1;dy=parseInt(iso[2]);
+  }else{mo=parseInt(parts[0])-1;dy=parseInt(parts[1]);yr=parseInt(parts[2]);}
+  const today=new Date();today.setHours(0,0,0,0);
+  const dt=new Date(yr,mo,dy);
+  return Math.round((today-dt)/86400000)<=365;
+}
   let total=0,done=0;
   BUILDING.forEach(s=>{
     total+=s.items.length;
@@ -750,7 +766,30 @@ async function instantMark(itemId){
   }catch(e){showToast('⚠️ Sync failed')}
 }
 
-async function doUnmark(itemId){
+async function doMarkPull(itemId){
+  const item=findItem(itemId);
+  const section=getSectionFor(itemId);
+  const date=todayStr();const time=getTime();
+  state['pull_'+itemId]={name:activeUser.name,initials:activeUser.initials,date,time};
+  closeModal();refreshItem(itemId);
+  showToast(`⭐ ${item.label} marked as Room Pull!`);
+  try{
+    await apiPost({action:'markItem',itemId:'pull_'+itemId,itemLabel:'PULL: '+item.label,
+      section:section.label,staffName:activeUser.name,initials:activeUser.initials,date,time});
+  }catch(e){showToast('⚠️ Sync failed')}
+}
+
+async function doUnmarkPull(itemId){
+  const item=findItem(itemId);
+  const s=state['pull_'+itemId];
+  delete state['pull_'+itemId];
+  closeModal();refreshItem(itemId);
+  showToast(`⭐ Room Pull removed for ${item.label}`);
+  try{
+    await apiPost({action:'unmarkItem',itemId:'pull_'+itemId,itemLabel:'PULL: '+item.label,
+      section:'',staffName:s?.name,initials:s?.initials,date:todayStr(),time:getTime()});
+  }catch(e){}
+}
   const item=findItem(itemId);
   const section=getSectionFor(itemId);
   const s=state[itemId];
@@ -775,6 +814,14 @@ function openModal(itemId,mode){
     document.getElementById('modalTitle').textContent=`✅ ${item.label}`;
     document.getElementById('modalSub').textContent=`You marked this at ${s.time}. Need to undo?`;
     loadModalHistory(itemId);
+    const pullBtn=document.createElement('button');
+    pullBtn.className='modal-action-btn primary';
+    const hasPull=isPullActive(state['pull_'+itemId]?.date);
+    pullBtn.textContent=hasPull?'⭐ Remove Room Pull':'⭐ Mark as Room Pull';
+    pullBtn.style.background=hasPull?'#92400e':'#b45309';
+    pullBtn.style.borderColor=hasPull?'#f59e0b':'#f59e0b';
+    pullBtn.onclick=()=>hasPull?doUnmarkPull(itemId):doMarkPull(itemId);
+    actions.appendChild(pullBtn);
     const undoBtn=document.createElement('button');
     undoBtn.className='modal-action-btn danger';undoBtn.textContent='↩ Unmark this item';
     undoBtn.onclick=()=>doUnmark(itemId);
