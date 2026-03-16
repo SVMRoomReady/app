@@ -108,7 +108,9 @@ main{padding:10px 10px 90px}
 
 /* SECTIONS */
 .section{margin-bottom:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
-.section-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;position:relative;overflow:hidden;}
+.section-progress-fill{position:absolute;left:0;top:0;height:100%;background:linear-gradient(90deg,rgba(22,163,74,.18),rgba(34,197,94,.10));transition:width .4s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:0;}
+.section-header>*{position:relative;z-index:1;}
 .section-title{font-family:'Rajdhani',sans-serif;font-size:.86rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-mid)}
 .section-meta{display:flex;align-items:center;gap:6px}
 .section-badge{font-family:'Rajdhani',sans-serif;font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:99px;background:var(--border);color:var(--text-dim)}
@@ -631,6 +633,7 @@ function buildChecklist(){
     const sec=document.createElement('div');
     sec.className='section collapsed';sec.id='sec_'+section.id;
     sec.innerHTML=`<div class="section-header" onclick="toggleSection('${section.id}')">
+      <div class="section-progress-fill" id="spf_${section.id}" style="width:${total?Math.round(done/total*100):0}%"></div>
       <div class="section-title">${section.label}</div>
       <div class="section-meta">
         <div class="section-badge ${done===total?'complete':''}" id="badge_${section.id}">${done}/${total}</div>
@@ -688,6 +691,8 @@ function updateSectionBadge(section){
   const total=section.items.length;
   const badge=document.getElementById('badge_'+section.id);
   if(badge){badge.textContent=`${done}/${total}`;badge.className='section-badge'+(done===total?' complete':'')}
+  const fill=document.getElementById('spf_'+section.id);
+  if(fill)fill.style.width=(total?Math.round(done/total*100):0)+'%';
 }
 
 function updateProgress(){
