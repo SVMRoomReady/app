@@ -913,7 +913,7 @@ async function confirmReset(){
     showToast(`🤷 Nothing to reset for ${activeUser.name}!`);
     return;
   }
-  if(!confirm(`Reset ${activeUser.name}'s items for today? Other users' work is unaffected. History in the Sheet is preserved.`))return;
+  if(!confirm(`Reset ${activeUser.name}'s items for today? Other users' work is unaffected.`))return;
   myItems.forEach(k=>delete state[k]);
   buildChecklist();
   if(document.getElementById('tab-history').classList.contains('active'))buildHistoryTab();
