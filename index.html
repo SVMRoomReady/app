@@ -714,6 +714,8 @@ function isPullActive(pullDate){
   const dt=new Date(yr,mo,dy);
   return Math.round((today-dt)/86400000)<=365;
 }
+
+function updateProgress(){
   let total=0,done=0;
   BUILDING.forEach(s=>{
     total+=s.items.length;
@@ -790,6 +792,8 @@ async function doUnmarkPull(itemId){
       section:'',staffName:s?.name,initials:s?.initials,date:todayStr(),time:getTime()});
   }catch(e){}
 }
+
+async function doUnmark(itemId){
   const item=findItem(itemId);
   const section=getSectionFor(itemId);
   const s=state[itemId];
