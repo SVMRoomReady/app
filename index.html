@@ -821,11 +821,27 @@ function openModal(itemId,mode){
     const pullBtn=document.createElement('button');
     pullBtn.className='modal-action-btn primary';
     const hasPull=isPullActive(state['pull_'+itemId]?.date);
-    pullBtn.textContent=hasPull?'⭐ Remove Room Pull':'⭐ Mark as Room Pull';
-    pullBtn.style.background=hasPull?'#92400e':'#b45309';
-    pullBtn.style.borderColor=hasPull?'#f59e0b':'#f59e0b';
-    pullBtn.onclick=()=>hasPull?doUnmarkPull(itemId):doMarkPull(itemId);
-    actions.appendChild(pullBtn);
+    const pullToday=hasPull&&getAgeClass(state['pull_'+itemId]?.date)==='today';
+    if(!hasPull){
+      pullBtn.textContent='⭐ Mark as Room Pull';
+      pullBtn.style.background='#b45309';
+      pullBtn.style.borderColor='#f59e0b';
+      pullBtn.onclick=()=>doMarkPull(itemId);
+      actions.appendChild(pullBtn);
+    } else if(pullToday){
+      pullBtn.textContent='⭐ Remove Room Pull';
+      pullBtn.style.background='#92400e';
+      pullBtn.style.borderColor='#f59e0b';
+      pullBtn.onclick=()=>doUnmarkPull(itemId);
+      actions.appendChild(pullBtn);
+    } else {
+      pullBtn.textContent='⭐ Room Pull logged';
+      pullBtn.style.background='#78350f';
+      pullBtn.style.borderColor='#f59e0b';
+      pullBtn.style.opacity='0.6';
+      pullBtn.disabled=true;
+      actions.appendChild(pullBtn);
+    }
     const undoBtn=document.createElement('button');
     undoBtn.className='modal-action-btn danger';undoBtn.textContent='↩ Unmark this item';
     undoBtn.onclick=()=>doUnmark(itemId);
