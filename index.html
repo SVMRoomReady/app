@@ -959,7 +959,7 @@ async function manualSync(){
 async function confirmReset(){
   if(!activeUser)return;
   const today=todayStr();
-  const myItems=Object.keys(state).filter(k=>state[k].date===today&&state[k].initials===activeUser.initials);
+  const myItems=Object.keys(state).filter(k=>state[k].date===today&&state[k].initials===activeUser.initials&&!k.startsWith('pull_'));
   if(myItems.length===0){
     showToast(`🤷 Nothing to reset for ${activeUser.name}!`);
     return;
