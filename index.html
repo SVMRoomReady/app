@@ -872,13 +872,26 @@ function showToast(msg){
   _toastTimer=setTimeout(()=>{t.classList.remove('show');_toastTimer=null;},2200);
 }
 
+function getExpandedSections(){
+  return BUILDING.filter(s=>!document.getElementById('sec_'+s.id)?.classList.contains('collapsed')).map(s=>s.id);
+}
+
+function restoreExpandedSections(expanded){
+  expanded.forEach(id=>{
+    const sec=document.getElementById('sec_'+id);
+    if(sec)sec.classList.remove('collapsed');
+  });
+}
+
 async function manualSync(){
   const btn=document.getElementById('syncBtn');
+  const expanded=getExpandedSections(); // save before rebuild
   btn.textContent='⏳ Syncing...';
   btn.disabled=true;
   try{
-    state=await apiGet(); // also updates avatars
+    state=await apiGet();
     buildChecklist();
+    restoreExpandedSections(expanded); // restore after rebuild
     if(document.getElementById('tab-history').classList.contains('active'))buildHistoryTab();
     if(activeUser)updateActiveUserBadge();
     showToast('📡 Synced!');
