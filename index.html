@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>SVM Housekeeping</title>
+<meta name="theme-color" content="#181d25">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <link rel="apple-touch-icon" href="favicon.svg">
 <style>
@@ -660,7 +661,7 @@ function buildItem(item){
     btn.id='btn_'+item.id;
     btn.onclick=()=>handleTap(item.id);
     btn.innerHTML=`<span class="r-label">${item.label}</span>`
-      +(s?`<span class="r-who">${s.initials}</span><span class="r-date">${s.date}</span>`:'');
+      +(s?`<span class="r-who">${s.initials}</span>`:'');
     return btn;
   }
   if(item.type==='bath'){
