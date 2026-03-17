@@ -860,6 +860,33 @@ function openModal(itemId,mode){
     document.getElementById('modalTitle').textContent=`⚠️ Already Cleaned`;
     document.getElementById('modalSub').textContent=`${prevAvatar} ${s.staffName||s.name||s.initials} marked this today at ${s.time}.\nDo you want to mark it as cleaned by you instead?`;
     document.getElementById('modalHistory').style.display='none';
+    // Room Pull option for anyone on a resident room
+    if(item.type==='room'){
+      const hasPull=isPullActive(state['pull_'+itemId]?.date);
+      const pullToday=hasPull&&getAgeClass(state['pull_'+itemId]?.date)==='today';
+      if(!hasPull){
+        const pullBtn=document.createElement('button');
+        pullBtn.className='modal-action-btn primary';
+        pullBtn.textContent='⭐ Mark as Room Pull';
+        pullBtn.style.background='#b45309';pullBtn.style.borderColor='#f59e0b';
+        pullBtn.onclick=()=>doMarkPull(itemId);
+        actions.appendChild(pullBtn);
+      } else if(pullToday){
+        const pullBtn=document.createElement('button');
+        pullBtn.className='modal-action-btn primary';
+        pullBtn.textContent='⭐ Remove Room Pull';
+        pullBtn.style.background='#92400e';pullBtn.style.borderColor='#f59e0b';
+        pullBtn.onclick=()=>doUnmarkPull(itemId);
+        actions.appendChild(pullBtn);
+      } else {
+        const pullBtn=document.createElement('button');
+        pullBtn.className='modal-action-btn primary';
+        pullBtn.textContent='⭐ Room Pull logged';
+        pullBtn.style.background='#78350f';pullBtn.style.borderColor='#f59e0b';
+        pullBtn.style.opacity='0.6';pullBtn.disabled=true;
+        actions.appendChild(pullBtn);
+      }
+    }
     const overBtn=document.createElement('button');
     overBtn.className='modal-action-btn primary';overBtn.textContent=`Yes — mark as ${activeUser.name}`;
     overBtn.onclick=()=>{closeModal();instantMark(itemId)};
