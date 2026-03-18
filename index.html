@@ -802,12 +802,16 @@ async function doUnmark(itemId){
   try{
     const result=await apiPost({action:'unmarkItem',itemId,itemLabel:item.label,section:section.label,
       staffName:s?.name,initials:s?.initials,date:todayStr(),time:getTime()});
+    console.log('unmark result:', JSON.stringify(result));
     if(result.previousClean){
+      console.log('restoring previous:', JSON.stringify(result.previousClean));
       state[itemId]=result.previousClean;
     }else{
+      console.log('no previous clean found, deleting');
       delete state[itemId];
     }
   }catch(e){
+    console.error('unmark error:', e);
     delete state[itemId];
   }
   refreshItem(itemId);updateSectionBadge(section);updateProgress();
