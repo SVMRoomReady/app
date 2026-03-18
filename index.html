@@ -634,7 +634,7 @@ function buildChecklist(){
   const content=document.getElementById('checklistContent');
   content.innerHTML='';
   BUILDING.forEach(section=>{
-    const done=section.items.filter(i=>state[i.id]).length;
+    const done=section.items.filter(i=>state[i.id]&&getAgeClass(state[i.id].date)==='today').length;
     const total=section.items.length;
     const sec=document.createElement('div');
     sec.className='section collapsed';sec.id='sec_'+section.id;
@@ -694,7 +694,7 @@ function toggleSection(id){document.getElementById('sec_'+id).classList.toggle('
 
 function updateSectionBadge(section){
   if(!section)return;
-  const done=section.items.filter(i=>state[i.id]).length;
+  const done=section.items.filter(i=>state[i.id]&&getAgeClass(state[i.id].date)==='today').length;
   const total=section.items.length;
   const badge=document.getElementById('badge_'+section.id);
   if(badge){badge.textContent=`${done}/${total}`;badge.className='section-badge'+(done===total?' complete':'')}
@@ -802,13 +802,9 @@ async function doUnmark(itemId){
   try{
     const result=await apiPost({action:'unmarkItem',itemId,itemLabel:item.label,section:section.label,
       staffName:s?.name,initials:s?.initials,date:todayStr(),time:getTime()});
-    console.log('unmark result:', JSON.stringify(result));
-    console.log('today is:', todayStr());
     if(result.previousClean){
-      console.log('restoring previous:', JSON.stringify(result.previousClean));
       state[itemId]=result.previousClean;
     }else{
-      console.log('no previous clean found, deleting');
       delete state[itemId];
     }
   }catch(e){
