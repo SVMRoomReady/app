@@ -797,13 +797,20 @@ async function doUnmark(itemId){
   const item=findItem(itemId);
   const section=getSectionFor(itemId);
   const s=state[itemId];
-  delete state[itemId];
-  closeModal();refreshItem(itemId);updateSectionBadge(section);updateProgress();
+  closeModal();
   showToast(`↩ ${item.label} unmarked`);
   try{
-    await apiPost({action:'unmarkItem',itemId,itemLabel:item.label,section:section.label,
+    const result=await apiPost({action:'unmarkItem',itemId,itemLabel:item.label,section:section.label,
       staffName:s?.name,initials:s?.initials,date:todayStr(),time:getTime()});
-  }catch(e){}
+    if(result.previousClean){
+      state[itemId]=result.previousClean;
+    }else{
+      delete state[itemId];
+    }
+  }catch(e){
+    delete state[itemId];
+  }
+  refreshItem(itemId);updateSectionBadge(section);updateProgress();
 }
 
 // ── Modal ──
